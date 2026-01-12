@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        h1 {
+            color: #333;
+            grid-column: 1 / -1;
+        }
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #status-box {
+            grid-column: 1 / -1;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #ccc;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        #messages {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 350px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin: 10px 0;
+        }
+        #notifications {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .msg {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 3px solid #4CAF50;
+            border-radius: 3px;
+        }
+        .notif {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 3px solid #ff9800;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Socket.io Simple Test</h1>
+
+    <div class="box" id="status-box">
+        <div class="status disconnected" id="status">Disconnected</div>
+    </div>
+
+    <div class="box">
+        <h2>Chat</h2>
+
+        <input id="username" placeholder="Your name" value="Guest">
+        <input id="room" placeholder="Room name" value="general">
+
+        <button onclick="joinRoom()">Join Room</button>
+        <button onclick="leaveRoom()">Leave Room</button>
+
+        <h3>Messages</h3>
+        <div id="messages"></div>
+
+        <input id="messageInput" placeholder="Type message..." disabled>
+        <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+
+    <div class="box">
+        <h2>Notifications</h2>
+        <div id="notifications"></div>
+        <button onclick="clearNotifications()">Clear</button>
+    </div>
+</div>
+
+<script>
+    const socket = io('http://localhost:3000');
+
+    let inRoom = false;
+    let currentUser = null;
+
+    socket.on('connect', () => {
+        updateStatus('Connected', true);
+        addNotification('Connected to server');
+    });
+
+    socket.on('disconnect', () => {
+        updateStatus('Disconnected', false);
+        inRoom = false;
+        updateButtons();
+    });
+
+    socket.on('message:received', (data) => {
+        const label = data.userName === currentUser ? 'You' : data.userName;
+        addMessage(label + ': ' + data.text);
+    });
+
+    socket.on('message:notification', (data) => {
+        addNotification(data.message || data);
+    });
+
+    function joinRoom() {
+        const username = document.getElementById('username').value.trim() || 'Guest';
+        const room = document.getElementById('room').value.trim() || 'general';
+
+        currentUser = username;
+
+        socket.emit('user:join', username);
+        socket.emit('room:join', room);
+
+        inRoom = true;
+        updateButtons();
+        addNotification(`Joined room: ${room}`);
+    }
+
+    function leaveRoom() {
+        const room = document.getElementById('room').value || 'general';
+        socket.emit('room:leave', room);
+
+        inRoom = false;
+        updateButtons();
+        addNotification(`Left room: ${room}`);
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        const room = document.getElementById('room').value || 'general';
+
+        if (!text) return;
+
+        socket.emit('message:send', {
+            roomId: room,
+            text,
+            userName: currentUser
+        });
+
+        input.value = '';
+    }
+
+    function addMessage(text) {
+        const el = document.createElement('div');
+        el.className = 'msg';
+        el.textContent = text;
+        document.getElementById('messages').appendChild(el);
+    }
+
+    function addNotification(text) {
+        const el = document.createElement('div');
+        el.className = 'notif';
+        el.textContent = text;
+        document.getElementById('notifications').appendChild(el);
+    }
+
+    function clearNotifications() {
+        document.getElementById('notifications').innerHTML = '';
+    }
+
+    function updateStatus(text, connected) {
+        const el = document.getElementById('status');
+        el.textContent = text;
+        el.className = `status ${connected ? 'connected' : 'disconnected'}`;
+    }
+
+    function updateButtons() {
+        document.getElementById('messageInput').disabled = !inRoom;
+        document.getElementById('sendBtn').disabled = !inRoom;
+    }
+
+    document.getElementById('messageInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) sendMessage();
+    });
+</script>
+
+</body>
+</html>

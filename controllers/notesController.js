@@ -21,6 +21,19 @@ exports.createNote = async (req, res) => {
 
     await note.save();
     logger.info('Note created successfully', { noteId: note._id, userId: req.user.id });
+    
+    // Emit Socket.io notification
+    if (req.app.io) {
+      req.app.io.emit('notification:note', {
+        type: 'note_created',
+        message: `New note created: "${note.title}"`,
+        noteId: note._id,
+        userId: req.user.id,
+        title: note.title,
+        timestamp: new Date()
+      });
+    }
+    
     return res.status(201).json({ success: true, message: 'Note created', note });
   } catch (err) {
     logger.error('Error creating note', { error: err.message, stack: err.stack });

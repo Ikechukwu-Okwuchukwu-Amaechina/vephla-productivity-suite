@@ -31,6 +31,19 @@ exports.createTask = async (req, res) => {
     });
 
     await task.save();
+    
+    // Emit Socket.io notification
+    if (req.app.io) {
+      req.app.io.emit('notification:task', {
+        type: 'task_created',
+        message: `New task created: "${task.title}"`,
+        taskId: task._id,
+        title: task.title,
+        userId: req.user.id,
+        timestamp: new Date()
+      });
+    }
+    
     return res.status(201).json({ success: true, message: 'Task created', task });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Error creating task', error: err.message });
@@ -168,6 +181,19 @@ exports.completeTask = async (req, res) => {
 
     task.completed = true;
     await task.save();
+    
+    // Emit Socket.io notification
+    if (req.app.io) {
+      req.app.io.emit('notification:task', {
+        type: 'task_completed',
+        message: `Task "${task.title}" marked as completed`,
+        taskId: task._id,
+        title: task.title,
+        userId: req.user.id,
+        timestamp: new Date()
+      });
+    }
+    
     return res.json({ success: true, message: 'Task marked as completed', task });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Not found' });

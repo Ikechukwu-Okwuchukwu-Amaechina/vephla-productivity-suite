@@ -8,6 +8,11 @@ const connectDB = require('./config/db');
 const http = require('http');
 const socketIo = require('socket.io');
 
+const { graphqlHTTP } = require('express-graphql');
+const graphqlSchema = require('./graphql/schema');
+const graphqlResolvers = require('./graphql/resolvers');
+const { verifyToken } = require('./middleware/auth');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -41,6 +46,23 @@ const sessionOptions = {
 };
 if (process.env.NODE_ENV !== 'test' && sessionStore) sessionOptions.store = sessionStore;
 app.use(session(sessionOptions));
+
+const graphqlAuth = (req, res, next) => {
+  verifyToken(req, res, () => {
+    next();
+  });
+};
+
+app.use(
+  '/graphql',
+  graphqlAuth,
+  graphqlHTTP((req) => ({
+    schema: graphqlSchema,
+    rootValue: graphqlResolvers,
+    context: { user: req.user },
+    graphiql: true,
+  }))
+);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/notes', require('./routes/notes'));

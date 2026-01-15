@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const http = require('http');
 const socketIo = require('socket.io');
+const path = require('path');
 
 const { graphqlHTTP } = require('express-graphql');
 const graphqlSchema = require('./graphql/schema');
@@ -25,7 +26,7 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // session persistence using MongoDB (skip store in test environment)
 if (!process.env.SESSION_SECRET) {
@@ -36,7 +37,7 @@ if (process.env.NODE_ENV !== 'test') {
 	sessionStore = (typeof MongoStore.create === 'function')
 		? MongoStore.create({ mongoUrl: process.env.MONGO_URI })
 		: // fallback for older/commonjs interop
-			MongoStore({ mongoUrl: process.env.MONGO_URI });
+		MongoStore({ mongoUrl: process.env.MONGO_URI });
 }
 const sessionOptions = {
 	secret: process.env.SESSION_SECRET || 'change-me',
@@ -48,20 +49,20 @@ if (process.env.NODE_ENV !== 'test' && sessionStore) sessionOptions.store = sess
 app.use(session(sessionOptions));
 
 const graphqlAuth = (req, res, next) => {
-  verifyToken(req, res, () => {
-    next();
-  });
+	verifyToken(req, res, () => {
+		next();
+	});
 };
 
 app.use(
-  '/graphql',
-  graphqlAuth,
-  graphqlHTTP((req) => ({
-    schema: graphqlSchema,
-    rootValue: graphqlResolvers,
-    context: { user: req.user },
-    graphiql: true,
-  }))
+	'/graphql',
+	graphqlAuth,
+	graphqlHTTP((req) => ({
+		schema: graphqlSchema,
+		rootValue: graphqlResolvers,
+		context: { user: req.user },
+		graphiql: true,
+	}))
 );
 
 app.use('/api/auth', require('./routes/auth'));
@@ -69,6 +70,7 @@ app.use('/api/notes', require('./routes/notes'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/files', require('./routes/files'));
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/admin', require('./routes/admin'));
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 

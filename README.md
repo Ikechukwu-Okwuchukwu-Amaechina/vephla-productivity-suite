@@ -437,3 +437,11 @@ Response: { "message": "File deleted", "file": {...} }
 
 Distributed under the MIT License.
 See the `LICENSE` file for more information.
+
+## Live Demo
+
+[View Live API](https://vephla-productivity-suite-bv3g.onrender.com)
+
+Admin Dashboard: `https://vephla-productivity-suite-bv3g.onrender.com/admin_dashboard.html`
+
+---
